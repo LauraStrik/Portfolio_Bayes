@@ -1,0 +1,302 @@
+---
+title: "Portfolio Bayesiaanse Statistiek"
+date: "`r Sys.Date()`"
+author: "Laura Strik"
+output:
+  rmdformats::material:
+    highlight: kate
+    self_contained: true
+    code_folding: show
+    thumbnails: true
+    gallery: true
+    fig_width: 4
+    fig_height: 4
+    df_print: kable
+---
+
+
+```{r knitr_init, echo=FALSE, cache=FALSE}
+library(knitr)
+library(rmdformats)
+
+## Global options
+options(max.print="75")
+opts_chunk$set(echo=FALSE,
+	             cache=FALSE,
+               prompt=FALSE,
+               tidy=FALSE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE)
+opts_knit$set(width=75)
+```
+# Assignment 1: Geneesmiddel
+## Casus: effectiviteit van geneesmiddel
+
+Om na te gaan of een geneesmiddel effectief is krijgen 7 personen het geneesmiddel en 7 personen een placebo.
+De toetsingsgrootheid is het verschil van het aantal dagen dat nodig is om te herstellen. Als het geneesmiddel werkt is het verschil positief.
+
+In deze opdracht is de vraag of er een verschil bestaat tussen gebruik van een geneesmiddel of een placebo?
+
+Hypothesen: 
+
+* $H_0 : \textbf{er is geen verschil tussen geneesmiddel en placebo}$
+* $H_1 :\textbf{er is wel een verschil}$  
+
+De volledige dataverzameling is:
+```{r sh, echo=TRUE, eval=TRUE}
+x<-c(7,8,6,8,7,6,8,7,6,7,4,5,7,7)
+#De placebo groep
+placebo<-x[1:7]
+sum(x[1:7])		
+
+#De geneesmiddelgroep
+geneesmiddel<-x[8:14]
+sum(x[8:14])
+```
+Als we uitgaan van de nulhypothese is er feitelijk geen verschil tussen de groepen. Dan is de steekproef een willekeurige volgorde getallen. Daarom gaan we verder met de permutatietoets.
+
+## Permutatietoets
+Nu kunnen we met behulp van de computer een groot aantal permutaties uit deze dataverzameling produceren en van elke permutatie het verschil bepalen tussen de som van de eerste zeven en de laatste zeven getallen. Als dan de steekproefuitkomst 7 uizonderlijk groot is tegen de achtergrond van de verdeling, dan mogen we aannemen dat onze steekproefuitkomst niet op toeval berust.
+
+### 1. Toetsingsgrootheid
+Vervolgens defineren we een functie die de computer het verschil laat berekenen van de som van de eerste 7 getallen van elke permutatie. Die functie noemen we sdif (van "sum" en "difference").
+```{r echo=TRUE}
+# Een functie om de toetsingsgrootheid te bepalen
+sdif<-function(x) sum(x[1:7]) -sum(x[8:14])
+sdif(x)
+```
+### 2. Permutaties maken
+Nu laten we de computer 100.000 volgordes maken (permutaties) van de getallen uit de dataverzameling. En vervolgends de functie van hierboven, sdif aanroepen om alle verschillen te berekenen oftewel de toetsingsgrootheid. Omdat het een permutatie bettreft, gaat het om een trekking zonder terugleggen (vandaar replace=F).
+```{r echo=TRUE}
+a=c(replicate(100000,sdif(sample(x, replace=F))))
+```
+### Visualisatie van de permutaties
+De verdeling van die 100.000 verschillen geeft dan een indicatie van de mate van variatie in het verschil van de twee sommen die we op basis van toeval mogen verwachten. Om te bekijken hoe vaak de uitkomst 7 voorkomt is er een histogram gemaakt:
+```{r a, echo=FALSE}
+# Histogram 
+hist(a,breaks=seq(-15,15), prob=T)
+```
+
+### 3. Normaal-verdeling
+Om te testen op normale verdeling is er een QQplot gemaakt. QQplot (quantile-quantile plot) die berekent de verwachte waarde voor elke observatie volgens een bepaalde verdeling in dit geval de normaal-verdeling.
+Maar er is ook getoetst of er daadwerkelijk een normaal verdeling is. Statistische analyse met kolgomorov-smirnov (als steekproef 1000+ is) en shapiro wilks (kleine steekproef). Dus in dit geval Kolgomorov smirnov test.
+
+```{r pressure, echo=FALSE}
+# qq-plot 
+qqnorm(a)
+qqline(a) # de lijn erdoorheen
+```
+De correlatie tussen de sample en de normaal verdeling uit de QQplot lijkt sterk te zijn wat duidt op een normaal-verdeling. Maar dit is niet genoeg door alleen *af te lezen* van een plaatje.
+```{r echo=TRUE}
+#Kolgomorov-smirnov
+ks.test(a, "pnorm", mean(a),sd(a))
+
+```
+
+
+Kolgomorov smirnov:  
+$H_0: \textbf{er is geen verschil met de normaal verdeling}$  
+$H_A: \textbf{er is wel verschil}$  
+
+Maar uit de k-s toets komt een p-waarde van: ```r ks.test(a,"pnorm",mean(a),sd(a))$p.value```. Daaruit blijkt dat de nulhypothese verworpen wordt, want de p-waarde< $\alpha(=0.05)$.  
+Je kunt wel zeggen dat de verdeling bij benadering normaal is door alleen te kijken naar de qqplot. En daarop berust gaan we verder.
+
+### 4. Bereken $\mathrm{P}(X \ge 7)$
+Aan de hand van de statistische functie in R voor de normaal verdeling, kunnen we de kans op een uitkomst van 7 of hoger berekenen.
+```{r echo=TRUE}
+mean(a)
+sd(a)
+1-pnorm(7, mean=mean(a), sd(a))
+```  
+ 
+## Conclusie
+Hieruit blijkt dat de kans 7 of hoger gegeven de nulhypothese waar is, gelijk is aan ```r1-pnorm(7, mean=mean(a), sd(a))```. Het geeft dus geen significant resultaat en dus is er onvoldoende grond om de nulhypothese te verwerpen:*er is geen verschil tussen geneesmiddel en placebo*.
+ 
+Het verschil 7 resulteert dus uit toevalsvariatie en is niet extreem genoeg om een daadwerkelijk een verschil te concluderen.
+
+
+# Assigment 2: Hoogleraar
+## Casus: Voldoet een proefschrift aan de kwaliteitseisen?
+
+Hoofdstuk 3.3 "Het Theorema van Bayes" opdracht twee uit Rob Flohr (2012) "De Bayesiaanse benadering"  [Online pdf](https://docplayer.nl/2377978-De-bayesiaanse-benadering.html)  
+\
+*"Het proces waarbij nieuwe informatie gebruikt wordt om een aanvankelijk oordeel of inschatting op grond van recente data te herzien en zo van meer zekerheid te voorzien, is gebasseerd op het theorema van Bayes" Rob Flohr (2012).*
+
+## Stap 1: Prior
+Voldoet een proefschrift aan de kwaliteitseisen (..)  
+*Hoeveel procent van de deskundige (populatie) geven een positief antwoord op de vraag of het proefschrift voldoet aan de kwaliteitscriteria voor een statistisch proefschrift?*  
+De drie hypothese en de bijbehorende **prior** kansen *die gebasseerd zijn op kennis vooraf* zijn als volgt:  
+
+$H_1: \pi_{H_1}  \textbf{ met }\mathrm{ P}(H_1) = \frac{3}{12}$      
+$H_2: \pi_{H_2}  \textbf{ met }\mathrm{ P}(H_2) = \frac{5}{12}$     
+$H_3: \pi_{H_3}  \textbf{ met }\mathrm{ P}(H_3) = \frac{4}{12}$     
+
+## Stap 2: Data verzamelen
+vijf aselect gekozen hoogleraren statistiek. Het blijkt dat drie van hen een positief antwoord geven; zij vinden dus dat het proefschrift voldoet aan de kwaliteitseisen.
+In welke mate *past* een hypothese en de daaraan gekoppelde parameterwaarde bij de gevonden data? Ookwel **likelihood** genoemd:  
+
+$\mathrm{P}(E_j|H_i)$ met $i=1,...,k $ hypothese en $j=1,...n $ mogelijke onderzoeksuitkomsten.
+
+Hieronder de eerste uitkomsten voor resp. $\mathrm{P}(E_0|H_1)$, $\mathrm{P}(E_1|H_1)$ en $\mathrm{P}(E_2|H_1)$ berekent met de volgende R-code:
+```{r echo=TRUE, tidy=TRUE}
+dbinom(0,size=5,prob=0.40)
+dbinom(1,size=5,prob=0.40)
+dbinom(2,size=5,prob=0.40)
+
+```
+Om te kunenn zien wat de grootste kans in voor het aantal hoogleraren dat het proefschrift goedkeurd zijn de volgende plots hieronder gemaakt.\
+
+### De uitgerekende kansen voor alle $i$ en $j$ uitgezet in een grafische weergaven:{.tabset .tabset-fade .tabset-pills}
+
+#### H1
+```{r, echo=FALSE}
+x=0:5
+plot(x,dbinom(x,size=5,prob=0.4),type="h", main="Kansen Ej gegeven H1" )
+```
+
+#### H2
+```{r, echo=FALSE}
+plot(x,dbinom(x,size=5,prob=0.5),type="h",main="Kansen Ej gegeven H2")
+```
+
+#### H3
+```{r echo=FALSE}
+plot(x,dbinom(x,size=5,prob=0.6),type="h",main="Kansen Ej gegeven H3")
+```   
+
+Zo kun je in de eerste plot zien dat bij een $H_1$ (prob = 0.4) de kans dat twee van de vijf hoogleraren het proefschrift goedkeuren het grootst is. En bij een $H_3$ de kans voor drie van de vijf hoogleraren het proefschrift positief beoordelen het grootst is.   
+
+Voor deze opdracht waren drie van de vijf hoogleraren met een positief antwoord. Daarom is maar een gedeelte van de bovenstaande lijst met berekende voorwaardelijke kansen van belang: het gedeelte dat betrekking heeft op de uitkomst $E_3$. Die drie kansen zijn: $\mathrm{P}(E_3|H_1)$, $\mathrm{P}(E_3|H_2)$ en $\mathrm{P}(E_3|H_3)$, ook wel **likelihood** genoemd.
+
+## Stap 3: Posterior kansen
+Op basis van de bovenstaande berekeningen kunnen we de **posterior** kansen berekenen: $\mathrm{P}(H_1|E_3)$, $\mathrm{P}(H_2|E_3)$ en $\mathrm{P}(H_3|E_3)$.  
+De toepassing van de regel van Bayes levert de volgende posterior kans op voor $\mathrm{P}(H_1|E_3)= \frac{\mathrm{P}(H_1) * \mathrm{P}(E_3|H_1)}{\mathrm{P}(H_1) * \mathrm{P}(E_3|H_1)+\mathrm{P}(H_2) * \mathrm{P}(E_3|H_2)+\mathrm{P}(H_3) * \mathrm{P}(E_3|H_3)}$.\
+In de onderstaande R-code kan dit uitgewerkt worden:  
+
+```{r echo=TRUE, eval=TRUE}
+#kansen op hypothese
+pH1=3/12
+pH2=5/12
+pH3=4/12
+# likelihood
+pE3H1=dbinom(3,size=5,prob=0.4)
+pE3H2=dbinom(3,size=5,prob=0.5)
+pE3H3=dbinom(3,size=5,prob=0.6)
+#priorxlikelihood ookwel de teller vd breuk
+pH1*pE3H1
+#optelling van de noemer
+pH1*pE3H1+pH2*pE3H2+pH3*pE3H3
+#posterior
+pH1E3=pH1*pE3H1/(pH1*pE3H1+pH2*pE3H2+pH3*pE3H3)
+pH1E3
+```
+Dit kost veel werk om het uit te werken in R, vooral als het om een grotere steekproef gaat. Hier is een oplossing voor met behulp van de package "Bolstad". Het geeft een plot met de vergelijking van de kansen prior (begin voorspelling aan de hand van kennis) en de posterior (kans op hypothese gegeven de data). Daarnaast komt uit de functie *binomdp* (binominal sampling with a descrete prior) tabbellen en gegevens genaamd *Conditinal distribution of x given pi and *, *Joint distribution*, *marginal distribution of x* en afsluitend met een *Bayes simplified table*.
+
+```{r, echo=TRUE,message=FALSE}
+library(Bolstad)
+```
+```{r echo=TRUE}
+#hypothese pi
+pi=c(0.4,0.5,0.6)
+#prior pi.prior
+pi.prior=c(3/12,5/12,4/12)
+#tabel met de verdeling van 3 positief antwoord van de 5 hoogleraren
+results=binodp(3,5,pi,pi.prior)
+```  
+   
+* **De tabel Conditinal distribution of x given pi and n**, geeft voor iedere n de binominale kans weer, ook wel **likelihood** genoemd. Dit is te berekenen met de formule `pE3H1=dbinom(3,size=5,prob=0.4)` $=$ `r pE3H1` wat in stap 2 is gedaan. Die waarde is terug te vinden onder pi=0.4 en kolom 3 in deze tabel.
+
+* **De Joint distribution tabel**  bevat de waardes berekend aan de hand van de formule: $prior * likelihood$. Dit is in het begin bij stap 2 berekend met de volgende formule: $\mathrm{P}(H_1)*\mathrm{P}(E_3|H_1)$=`r pH1*pE3H1`, wat in deze tabel terug te vinden is op positie [1,] en kolom 3.
+
+* **De marginal distribution of x** geeft de opsomming van de kansen van de tabel *Joint distribution*. Oftewel de optelling van de van de kansen $prior * likelihood$ met de bijhorende uitkomst van het aantal positieve hoogleraren, in dit geval voor $E_3$: 
+$\sum_{i=1}^3\mathrm{P}(H_i)*\mathrm{P}(E_3|H_i)$ = `r pH1*pE3H1+pH2*pE3H2+pH3*pE3H3` (berekend eerder in stap 2 ```pH1*pE3H1+pH2*pE3H2+pH3*pE3H3```.
+Deze waarde is terug te vinden onder kolom 3.
+
+* **Bayes simplified table** is de laatste tabel dat berekend is in de functie binomdp. Dit geeft een simpele vorm van de Bayes berekeningen weer. In deze tabel kun je de waardes vanuit de vorige tabellen terugvinden maar alleen wat geldt voor die drie van de vijf hoogleraren die positief antwoordde op de vraag in het begin gesteld werd: *voldoet het proefschrift aan de kwaliteitscriteria voor een statistisch proefschrift?*.
+Dit is een handige samenvatting van alle berekende stappen om tot een posterior kans te komen.  
+
+## Conclusie
+We zien dat de posterior kansen sterk overeenkomen met de prior kansen. Dit is het gevolg van het feit dat er sprake is van een kleine steekproef. Hieruit blijkt dat de tweede hypothese *50% van de hoogleraren geven een positief antwoord* het meest waarschijnlijk is maar aangezien het een kleine steekrpoef is kun je hier niet teveel waarde aan hechten.
+
+# Assignment 3: Harry Potter
+## Casus: Bemachtiging nieuwe boek Harry Potter
+
+In een onderzoek onder 900 kinderen, uitgevoerd in het Verenigd Koninkrijk in juni 2005, voorafgaand aan het verschijnen van J.K. Rowlings *Harry Potter and the Half Blood Prince*, gaf 41 % van de kinderen aan dat ze een exemplaar van het nieuwe boek tijdens het eerste weekend na publicatie zouden gaan bemachtigen.\
+De uitgever van de Harry Potter boeken was uitgegaan van een populatieproportie van 39%.\
+
+## 1. Vraag vanuit de klassieke statistiek:
+Houdt de uitkomst van de steekproef onder 900 kinderen in dat de verwachting van de uitgever te laag was?\
+*vragen geformuleerd om tot een conclusie te komen:*
+a. H0: werkelijke percentage is 39 %.  
+b. $\mathrm{P}(B<351)=?$  
+c. De conclusie is dat H0 is..   
+```{r echo=TRUE, eval=TRUE}
+#b
+n=900
+pcent_goed=0.41
+uitgang=0.39
+succes=n*pcent_goed
+sum(dbinom(1:351,n,pcent_goed))
+#c
+binom.test(succes,n,uitgang)
+```
+   
+### Conclusie vanuit de klassieke statistiek
+De verwachting van de uitgever was niet te laag dus het antwoord is nee. Dit omdat de steekproefuitkomst van ```r n*uitgang``` uit ```r n``` gezien een relatief hoge p-waarde van
+``r binom.test(succes,n,uitgang)$p.value`` geen onwaarschijnlijke uitkomst is wanneer de populatieproportie van ```r uitgang``` zou zijn.\
+
+#### Betrouwbaarheidsinterval\
+En redenerend vanuit het 95% betrouwbaarheidsinterval, wanneer we dit experiment (telkens aan 900
+kinderen vragen of ze het boek wel of niet gaan bemachtigen) vele malen zouden herhalen, dan zal de
+echte populatieproportie in 95% van alle gevallen tussen ```r binom.test(succes,n,uitgang)$conf.int``` liggen. En we zien dat
+de waarde van de nulhypothese 0.39 binnen dat interval ligt.\
+
+#### De kans uit vraag b $\mathrm{P}(B<351)$ \
+Ook de kans dat minder dan 39% van de kinderen het eerste weekend na publicatie het boek bemachtigen is berekend. Die kans is klein namelijk ```r sum(dbinom(1:351,n,pcent_goed))```.
+
+## 2. Vraag vanuit de Bayesiaanse statistiek:
+Omdat er al meerdere boeken in de Harry Potter-reeks verschenen waren, had de uitgever haar verwachting op basis van eerder verkregen informatie geformuleerd.  
+Stel dat de uitgever was uitgegaan van de volgende discrete prior kansen:
+```{r warning=FALSE,echo=FALSE, message=FALSE,eval=TRUE}
+library(knitr)
+library(tidyverse)
+library(kableExtra)
+df<- data.frame(pi= c(0.41,0.39,0.37),
+                prior= c(0.7,0.18,0.12))
+kable(df) %>%
+  kable_styling(bootstrap_options = "striped", full_width = F, position = "left")
+
+```
+
+Wat is de posterior kans op een proportie van 0.39 resp. 0.41 in de populatie van kinderen die een exemplaar van het nieuwe boek tijdens het eerste weekend na publicatie zouden gaan bemachtigen?\
+Dus opzoek naar de kansen: $\mathrm{P}(E_j|H_i)$ met $i=1,...,k $ hypothese en $j=1,...n $ mogelijke onderzoeksuitkomsten.\
+
+
+```{r message= FALSE,eval=TRUE, echo=TRUE}
+library(Bolstad)
+
+
+pi<-c(0.41,0.39,0.37)
+pi.prior<-c(0.7,0.18,0.12)
+results= binodp(succes,n,pi,pi.prior,suppressOutput = TRUE)
+#Conditional distribution of x given pi and n:
+results$f.cond[,350:355]
+#Joint distribution:
+results$f.joint[,350:355]
+#Marginal distribution of x:
+results$f.marg[,350:355]
+```
+
+### Conclusie vanuit Bayesiaanse statistiek
+
+Uiteindelijke tabel met bijbehorende posterior kansen:
+
+```{r echo=FALSE}
+results.tab = cbind(results$pi ,results$pi.prior ,results$likelihood,results$posterior)
+colnames(results.tab)<-c('Pi','Prior', 'Likelihood', 'Posterior')
+results.tab
+
+```
+
+Je ziet dat de kans voor een populatieproportie van `41%` groter wordt met de bijbehorende prior. 
